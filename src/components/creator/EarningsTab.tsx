@@ -5,6 +5,7 @@ import { EARNINGS_DATA } from '../../lib/mock/monetizationMockData';
 import { useCountUp } from '../../hooks/useCountUp';
 import { CreatorLineChart } from './CreatorLineChart';
 import { DonutChart } from './DonutChart';
+import { apiClient } from '../../lib/apiClient';
 
 interface EarningsTabProps {
   onExploreMonetization: () => void;
@@ -17,13 +18,25 @@ export function EarningsTab({ onExploreMonetization, hasEarnings }: EarningsTabP
   const [payoutSheetOpen, setPayoutSheetOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isEarningsUnavailable, setIsEarningsUnavailable] = useState(false);
 
   useEffect(() => {
     let active = true;
     const fetchEarnings = async () => {
       setLoading(true);
-      await new Promise((resolve) => setTimeout(resolve, 300));
-      if (active) setLoading(false);
+      try {
+        await apiClient.get('/creator/earnings');
+        if (active) {
+          setIsEarningsUnavailable(false);
+        }
+      } catch (err) {
+        console.warn("Real-time creator earnings API is offline:", err);
+        if (active) {
+          setIsEarningsUnavailable(true);
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
     };
     fetchEarnings();
     return () => { active = false; };
@@ -36,6 +49,20 @@ export function EarningsTab({ onExploreMonetization, hasEarnings }: EarningsTabP
       <div className="flex flex-col items-center justify-center text-center py-24 px-6">
         <div className="w-8 h-8 rounded-full border-2 border-white/20 border-t-[#D4AF37] animate-spin mb-4" />
         <p className="text-sm text-gray-500 font-mono tracking-wider">RETRIEVING EARNINGS & PAYOUTS...</p>
+      </div>
+    );
+  }
+
+  if (isEarningsUnavailable) {
+    return (
+      <div className="p-6 text-center">
+        <div className="bg-[#1A1A24]/40 border border-[#D4AF37]/15 rounded-2xl p-8 max-w-sm mx-auto">
+          <span className="text-4xl mb-3 block">💎</span>
+          <h3 className="text-lg font-bold text-white mb-2">Creator Earnings</h3>
+          <p className="text-xs text-gray-500 leading-relaxed">
+            The real-time ad revenue & Creator Fund ledger is currently offline. Earnings tracking is coming soon!
+          </p>
+        </div>
       </div>
     );
   }

@@ -67,10 +67,16 @@ export function PulseCommentsSheet({
       avatar: currentUser?.avatar || 'https://i.pravatar.cc/150?u=you',
     };
     setComments(prev => prev.some(c => c.id === newId) ? prev : [newComment, ...prev]);
-    await addPostComment(postId, newComment);
-    setCommentInput('');
-    setReplyingTo(null);
-    onCommentAdded(newComment);
+    try {
+      await addPostComment(postId, newComment);
+      setCommentInput('');
+      setReplyingTo(null);
+      onCommentAdded(newComment);
+    } catch (err) {
+      console.warn("Real addComment endpoint failed/unavailable, reverting optimistic addition and showing Coming Soon state", err);
+      setComments(prev => prev.filter(c => c.id !== newId));
+      window.dispatchEvent(new CustomEvent('skrimchat_toast', { detail: 'Comments engine is coming soon! ⚡' }));
+    }
   };
 
   const handlePulseComment = (id: string) =>

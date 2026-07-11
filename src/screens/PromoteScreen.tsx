@@ -11,6 +11,7 @@ import { LaunchCeremony } from '../components/promote/LaunchCeremony';
 import { CampaignDashboard } from '../components/promote/CampaignDashboard';
 import { SharedPaymentModal } from '../components/SharedPaymentModal';
 import { AD_DRAFT_DEFAULTS, AdDraft, USER_CONTENT, computeAdCost, SCOPE_LABELS, SCOPE_PRICE_PER_DAY, AD_GOALS } from '../lib/mock/monetizationMockData';
+import { apiClient } from '../lib/apiClient';
 
 type View = 'home' | 'create' | 'launched' | 'campaigns';
 
@@ -30,20 +31,29 @@ export default function PromoteScreen() {
   const [launchedCampaignId, setLaunchedCampaignId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isPromoteUnavailable, setIsPromoteUnavailable] = useState(false);
 
   useEffect(() => {
+    let active = true;
     const init = async () => {
       setLoading(true);
       setError(null);
       try {
-        await new Promise((resolve) => setTimeout(resolve, 500));
+        await apiClient.get('/promote/eligibility');
+        if (active) {
+          setIsPromoteUnavailable(false);
+        }
       } catch (err: any) {
-        setError(err.message || "Failed to initialize advertising workspace");
+        console.warn("Real-time advertising eligibility checks are offline:", err);
+        if (active) {
+          setIsPromoteUnavailable(true);
+        }
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     };
     init();
+    return () => { active = false; };
   }, []);
 
   // Arrive pre-filled from "Boost this content" or "Edit & Resubmit"
@@ -102,6 +112,31 @@ export default function PromoteScreen() {
     setLaunchedCampaignId('cmp1'); // mock: pretend the new campaign is cmp1 in the list
     setView('launched');
   };
+
+  if (isPromoteUnavailable) {
+    return (
+      <div className="w-full h-full flex flex-col bg-black text-white overflow-hidden">
+        <header className="px-4 pt-6 pb-4 sticky top-0 bg-[#05050A]/95 backdrop-blur-md z-40 border-b border-white/5">
+          <div className="flex items-center justify-between">
+            <button onClick={() => navigate('/identity')} className="w-9 h-9 flex items-center justify-center rounded-full bg-white/5 text-white/60">
+              <X className="w-5 h-5" />
+            </button>
+            <h1 className="text-sm font-bold tracking-widest uppercase">🎯 Promote</h1>
+            <div className="w-9" />
+          </div>
+        </header>
+        <div className="flex-1 overflow-y-auto no-scrollbar p-6 flex flex-col items-center justify-center text-center bg-[#05050A]">
+          <div className="bg-[#111115] border border-[#B026FF]/15 rounded-2xl p-8 max-w-sm mx-auto">
+            <span className="text-4xl mb-3 block">🎯</span>
+            <h3 className="text-lg font-bold text-white mb-2">Promote Workspace</h3>
+            <p className="text-xs text-gray-400 leading-relaxed">
+              Real-time advertising eligibility validation and campaign launchers are currently offline. Promote features are coming soon!
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (view === 'campaigns') {
     return (

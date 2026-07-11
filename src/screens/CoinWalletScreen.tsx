@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { ArrowLeft, TrendingUp, TrendingDown, Coins, Gamepad2, Megaphone, Info } from 'lucide-react';
 import { getCoins, getCoinsLog, addCoins, CoinsLogEntry, COINS_PER_RUPEE } from '../lib/coinsWallet';
 import { useNavigate } from 'react-router-dom';
+import { apiClient } from '../lib/apiClient';
 
 const HOW_TO_EARN = [
   { icon: '🎮', label: 'Play games in Discover', detail: '500 – 50,000 coins per game' },
@@ -43,18 +44,23 @@ export default function CoinWalletScreen() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'history' | 'earn' | 'buy'>('history');
   const [buyToast, setBuyToast] = useState('');
+  const [isWalletUnavailable, setIsWalletUnavailable] = useState(false);
 
   const refresh = async () => {
     setLoading(true);
     setError(null);
     try {
+      // Direct verification to check if the real coin balance API is offline / coming soon
+      await apiClient.get('/skrimchat-coins/balance');
+      setIsWalletUnavailable(false);
+
       const bal = await getCoins();
       const lg = await getCoinsLog();
       setBalance(bal);
       setLog(lg);
     } catch (err: any) {
-      console.error(err);
-      setError(err.message || "Failed to load wallet data");
+      console.warn("Real-time coins balance API is offline/unavailable:", err);
+      setIsWalletUnavailable(true);
     } finally {
       setLoading(false);
     }
@@ -75,6 +81,29 @@ export default function CoinWalletScreen() {
 
   const earned = log.filter(e => e.type === 'earn').reduce((s, e) => s + e.amount, 0);
   const spent = log.filter(e => e.type === 'spend').reduce((s, e) => s + e.amount, 0);
+
+  if (isWalletUnavailable) {
+    return (
+      <div className="h-screen bg-[#080810] text-white flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center gap-3 px-4 pt-safe-top py-3 border-b border-white/5 shrink-0">
+          <button onClick={() => navigate(-1)} className="w-9 h-9 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center transition">
+            <ArrowLeft className="w-5 h-5 text-white" />
+          </button>
+          <h1 className="text-lg font-bold text-white">Coin Wallet</h1>
+        </div>
+        <div className="flex-1 flex flex-col items-center justify-center text-center p-6">
+          <div className="bg-[#1A1A24]/40 border border-[#B026FF]/15 rounded-2xl p-8 max-w-sm mx-auto">
+            <span className="text-4xl mb-3 block">💰</span>
+            <h3 className="text-lg font-bold text-white mb-2">Coin Wallet</h3>
+            <p className="text-xs text-gray-400 leading-relaxed">
+              Real-time coins balance and wallet transactions are currently offline. The Coin Wallet feature is coming soon!
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen bg-[#080810] text-white flex flex-col overflow-hidden">

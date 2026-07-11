@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { ChevronLeft, Check, X, TrendingUp, TrendingDown } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useWorlds } from '../hooks/useWorldMembership';
+import { apiClient } from '../lib/apiClient';
 
 const EARNINGS_DATA = {
   Gross: 2970,
@@ -48,8 +49,33 @@ export default function CreatorEarningsScreen() {
   const [showPayoutSheet, setShowPayoutSheet] = useState(false);
   const [payoutMethod, setPayoutMethod] = useState<'upi' | 'bank'>('upi');
   const [upiId, setUpiId] = useState('yourname@okaxis');
+  const [isEarningsUnavailable, setIsEarningsUnavailable] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let active = true;
+    const fetchWorldEarnings = async () => {
+      setLoading(true);
+      try {
+        await apiClient.get(`/world/${worldId}/earnings`);
+        if (active) {
+          setIsEarningsUnavailable(false);
+        }
+      } catch (err) {
+        console.warn("Real-time world earnings API is offline:", err);
+        if (active) {
+          setIsEarningsUnavailable(true);
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    fetchWorldEarnings();
+    return () => { active = false; };
+  }, [worldId]);
+
+  useEffect(() => {
+    if (isEarningsUnavailable || loading) return;
     // Count up animation
     setCounter(0);
     const duration = 1200;
@@ -69,9 +95,48 @@ export default function CreatorEarningsScreen() {
     }, duration / frames);
 
     return () => clearInterval(timer);
-  }, []);
+  }, [isEarningsUnavailable, loading]);
 
   const maxChartValue = Math.max(...EARNINGS_DATA.chartData.map(d => d.amount));
+
+  if (loading) {
+    return (
+      <div className="w-full h-full flex flex-col bg-[#05050A] text-white overflow-hidden justify-center items-center">
+        <div className="w-8 h-8 rounded-full border-2 border-white/20 border-t-[#D4AF37] animate-spin mb-4" />
+        <p className="text-sm text-gray-500 font-mono tracking-wider">RETRIEVING WORLD LEDGER...</p>
+      </div>
+    );
+  }
+
+  if (isEarningsUnavailable) {
+    return (
+      <div className="flex flex-col h-full bg-[#05050A] text-white">
+        {/* Header */}
+        <div className="flex justify-between items-center px-4 py-4 border-b border-white/5 relative z-10 bg-[#05050A]/80 backdrop-blur-md">
+          <button 
+            onClick={() => navigate(-1)} 
+            className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors"
+          >
+            <ChevronLeft className="w-6 h-6" />
+          </button>
+          <div className="text-center">
+              <h1 className="text-[15px] font-bold tracking-widest uppercase text-white/90">World Earnings</h1>
+              <p className="text-[10px] text-[#D4AF37] font-bold">💎 Paid World</p>
+          </div>
+          <div className="w-10" />
+        </div>
+        <div className="flex-1 flex flex-col items-center justify-center text-center p-6 bg-[#05050A]">
+          <div className="bg-[#111115] border border-[#D4AF37]/15 rounded-2xl p-8 max-w-sm mx-auto">
+            <span className="text-4xl mb-3 block">💎</span>
+            <h3 className="text-lg font-bold text-white mb-2">World Earnings</h3>
+            <p className="text-xs text-gray-400 leading-relaxed">
+              Real-time paid membership stats and payouts are currently offline. World Earnings are coming soon!
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full bg-[#05050A] text-white">

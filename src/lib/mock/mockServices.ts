@@ -158,13 +158,7 @@ export const getCreatorStats = async () => {
 };
 
 export const likePost = async (postId: string) => {
-  try {
-    return await apiClient.post<any>(`/posts/${postId}/like`);
-  } catch (err) {
-    console.warn(`TODO: Real backend POST /posts/${postId}/like endpoint is not ready yet. Returning stub promise.`, err);
-    await delay(50);
-    return { success: true, postId };
-  }
+  return await apiClient.post<any>(`/posts/${postId}/like`);
 };
 
 export const shareSpark = async (sparkId: string, targetUsername: string, sparkData?: { thumbnail?: string; caption?: string; user?: { user: string; handle: string; avatar: string }; mood?: string }) => {

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Check } from 'lucide-react';
 import { SUBSCRIPTION_CONFIG } from '../../lib/mock/monetizationMockData';
+import { apiClient } from '../../lib/apiClient';
 
 export default function SubscriptionsManageScreen() {
   const navigate = useNavigate();
@@ -14,6 +15,7 @@ export default function SubscriptionsManageScreen() {
   const [vaultPhase, setVaultPhase] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isSubscriptionsUnavailable, setIsSubscriptionsUnavailable] = useState(false);
 
   useEffect(() => {
     let activeFlag = true;
@@ -21,13 +23,17 @@ export default function SubscriptionsManageScreen() {
       setLoading(true);
       setError(null);
       try {
-        await new Promise((resolve) => setTimeout(resolve, 300));
+        await apiClient.get('/monetization/subscriptions');
         if (activeFlag) {
+          setIsSubscriptionsUnavailable(false);
           setActive(SUBSCRIPTION_CONFIG.active);
           setPrice(SUBSCRIPTION_CONFIG.price);
         }
       } catch (err: any) {
-        if (activeFlag) setError(err.message || 'Failed to load subscriptions configuration.');
+        console.warn("Real-time subscriptions configuration is offline:", err);
+        if (activeFlag) {
+          setIsSubscriptionsUnavailable(true);
+        }
       } finally {
         if (activeFlag) setLoading(false);
       }
@@ -64,6 +70,31 @@ export default function SubscriptionsManageScreen() {
         <p className="text-red-400 font-bold mb-2">Portal Error</p>
         <p className="text-white/60 text-xs mb-4">{error}</p>
         <button onClick={() => window.location.reload()} className="px-4 py-2 bg-neon-purple text-white font-bold rounded-xl text-xs">Retry</button>
+      </div>
+    );
+  }
+
+  if (isSubscriptionsUnavailable) {
+    return (
+      <div className="w-full h-full flex flex-col bg-black text-white overflow-hidden">
+        <header className="px-4 pt-6 pb-4 sticky top-0 bg-[#05050A]/95 backdrop-blur-md z-40 border-b border-white/5">
+          <div className="flex items-center justify-between">
+            <button onClick={() => navigate('/monetization')} className="w-9 h-9 flex items-center justify-center rounded-full bg-white/5 text-white/60">
+              <X className="w-5 h-5" />
+            </button>
+            <h1 className="text-sm font-bold tracking-widest uppercase">📅 Subscriptions</h1>
+            <div className="w-9" />
+          </div>
+        </header>
+        <div className="flex-1 overflow-y-auto no-scrollbar p-6 flex flex-col items-center justify-center text-center">
+          <div className="bg-[#1A1A24]/40 border border-[#B026FF]/15 rounded-2xl p-8 max-w-sm mx-auto">
+            <span className="text-4xl mb-3 block">📅</span>
+            <h3 className="text-lg font-bold text-white mb-2">Creator Subscriptions</h3>
+            <p className="text-xs text-gray-400 leading-relaxed">
+              Real-time subscription portal and fan tier setups are currently offline. Subscriptions features are coming soon!
+            </p>
+          </div>
+        </div>
       </div>
     );
   }

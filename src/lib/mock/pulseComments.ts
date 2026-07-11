@@ -158,12 +158,7 @@ export function getPostCommentCountLocal(postId: string, defaultCount?: number):
 
 /** Prepends a new user-written comment and persists it. */
 export async function addPostComment(postId: string, comment: PulseComment): Promise<PulseComment[]> {
-  try {
-    return await apiClient.post<PulseComment[]>(`/skrimchat-comments/posts/${postId}`, { comment });
-  } catch (err) {
-    console.warn(`TODO: Real backend POST /skrimchat-comments/posts/${postId} not ready. Returning local fallback.`, err);
-    return addPostCommentLocal(postId, comment);
-  }
+  return await apiClient.post<PulseComment[]>(`/skrimchat-comments/posts/${postId}`, { comment });
 }
 
 export function addPostCommentLocal(postId: string, comment: PulseComment): PulseComment[] {

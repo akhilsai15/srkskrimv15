@@ -13,6 +13,7 @@ import {
   Pause, Volume2, VolumeX, Users,
 } from 'lucide-react';
 import { likePost } from '../lib/mock/mockServices';
+import { apiClient } from '../lib/apiClient';
 import { useSignalStore } from '../store/signalStore';
 import { getMutedUsers, getBlockedUsers, getPostModerationSettings, savePostModerationSettings } from '../lib/mock/mockSocialGraph';
 import { useCurrentUser } from '../hooks/useCurrentUser';
@@ -3677,10 +3678,15 @@ export default function PulseScreen() {
     }));
   };
 
-  const handleLike = (postId: string) => {
+  const handleLike = async (postId: string) => {
+    let previousLiked = false;
+    let previousLikesCount = 0;
+
     updatePostById(postId, (p) => {
+      previousLiked = !!p.isLiked;
+      previousLikesCount = p.likes || 0;
       const nowLiked = !p.isLiked;
-      const newCount = nowLiked ? p.likes + 1 : p.likes - 1;
+      const newCount = nowLiked ? (p.likes || 0) + 1 : Math.max(0, (p.likes || 0) - 1);
       // Persist liked state
       try {
         const likedList: string[] = JSON.parse(localStorage.getItem('skrimchat_liked_posts') || '[]');
@@ -3704,15 +3710,38 @@ export default function PulseScreen() {
       }
       return { ...p, isLiked: nowLiked, likes: newCount };
     });
-    likePost(postId);
+
+    try {
+      await likePost(postId);
+    } catch (err) {
+      console.warn("Real like endpoint failed/unavailable, reverting optimistic update and showing Coming Soon state", err);
+      updatePostById(postId, (p) => {
+        try {
+          const likedList: string[] = JSON.parse(localStorage.getItem('skrimchat_liked_posts') || '[]');
+          const counts: Record<string,number> = JSON.parse(localStorage.getItem('skrimchat_like_counts') || '{}');
+          const updated = previousLiked ? [...likedList.filter(id => id !== postId), postId] : likedList.filter(id => id !== postId);
+          counts[postId] = previousLikesCount;
+          localStorage.setItem('skrimchat_liked_posts', JSON.stringify(updated));
+          localStorage.setItem('skrimchat_like_counts', JSON.stringify(counts));
+        } catch (e) {}
+        return { ...p, isLiked: previousLiked, likes: previousLikesCount };
+      });
+      window.dispatchEvent(new CustomEvent('skrimchat_toast', { detail: 'Pulse/Like engine is coming soon! ⚡' }));
+    }
   };
 
   // Single source of truth for emoji reactions (🔥💀🚀 row + long-press image
   // picker both call this) so a tap from either entry point is reflected in
   // post.reactions and survives reloads, instead of each UI keeping its own
   // disconnected local copy.
-  const handleReact = (postId: string, reactionId: string | null) => {
+  const handleReact = async (postId: string, reactionId: string | null) => {
+    let previousMyReactionId: string | null = null;
+    let previousReactions: Record<string, number> = {};
+
     updatePostById(postId, (p) => {
+      previousMyReactionId = p.myReactionId || null;
+      previousReactions = p.reactions || {};
+
       let myReactions: Record<string, string> = {};
       try {
         myReactions = JSON.parse(localStorage.getItem('skrimchat_my_reactions') || '{}');
@@ -3758,6 +3787,28 @@ export default function PulseScreen() {
 
       return { ...p, reactions: nextCounts, myReactionId: reactionId };
     });
+
+    try {
+      await apiClient.post(`/posts/${postId}/react`, { reactionId });
+    } catch (err) {
+      console.warn("Real reactions endpoint failed/unavailable, reverting optimistic update and showing Coming Soon state", err);
+      updatePostById(postId, (p) => {
+        try {
+          const myReactions: Record<string, string> = JSON.parse(localStorage.getItem('skrimchat_my_reactions') || '{}');
+          if (previousMyReactionId) {
+            myReactions[postId] = previousMyReactionId;
+          } else {
+            delete myReactions[postId];
+          }
+          localStorage.setItem('skrimchat_my_reactions', JSON.stringify(myReactions));
+          const store: Record<string, Record<string, number>> = JSON.parse(localStorage.getItem('skrimchat_post_reactions') || '{}');
+          store[postId] = previousReactions;
+          localStorage.setItem('skrimchat_post_reactions', JSON.stringify(store));
+        } catch (e) {}
+        return { ...p, reactions: previousReactions, myReactionId: previousMyReactionId };
+      });
+      window.dispatchEvent(new CustomEvent('skrimchat_toast', { detail: 'Emoji Reactions engine is coming soon! ⚡' }));
+    }
   };
 
   const handleSave = (postId: string) => {

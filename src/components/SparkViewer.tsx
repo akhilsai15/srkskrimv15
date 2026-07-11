@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { getSparks } from "../lib/mock/mockServices";
+import { apiClient } from "../lib/apiClient";
 import { motion, AnimatePresence } from "motion/react";
 import { useNavigate } from "react-router-dom";
 import { PulseSendSheet } from './PulseSheets';
@@ -384,6 +385,7 @@ export function SparkViewer({
   const [isBounceSave, setIsBounceSave] = useState(false);
   const [showInsights, setShowInsights] = useState(false);
   const [showUI, setShowUI] = useState(true);
+  const [isSparkViewsUnavailable, setIsSparkViewsUnavailable] = useState(false);
   const [floatingEmojis, setFloatingEmojis] = useState<
     { id: string; emoji: string; x: number }[]
   >([]);
@@ -679,6 +681,17 @@ export function SparkViewer({
       if (!Array.isArray(savedList)) savedList = [];
       setIsSaved(savedList.includes(spark.id));
       if (onSparkViewed) onSparkViewed(spark.id);
+      
+      // Try reporting spark view/watch time to the real backend API
+      apiClient.post(`/sparks/${spark.id}/view`, { watchTimeMs: 1500 })
+        .then(() => {
+          setIsSparkViewsUnavailable(false);
+        })
+        .catch((err) => {
+          console.warn(`Real-time spark view reporting failed/offline:`, err);
+          setIsSparkViewsUnavailable(true);
+        });
+
       // Increment view count and record viewedBy in localStorage
       try {
         const viewedByKey = "skrimchat_spark_viewedby";
@@ -3431,45 +3444,55 @@ export function SparkViewer({
                     </div>
 
                     {/* Stats Grid */}
-                    <div className="grid grid-cols-2 gap-3 mb-6">
-                      <div className="bg-white/5 border border-white/10 rounded-2xl p-4 text-center">
-                        <span className="text-2xl mb-1 block">👁️</span>
-                        <p className="text-white text-xl font-black">
-                          {(spark.views || 0).toLocaleString()}
-                        </p>
-                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-1">Total Views</p>
+                    {isSparkViewsUnavailable ? (
+                      <div className="bg-white/5 border border-[#B026FF]/15 rounded-2xl p-6 text-center mb-6 shadow-inner">
+                        <span className="text-3xl mb-2 block">📊</span>
+                        <p className="text-[10px] text-[#B026FF] font-bold tracking-wider uppercase">⚡ Monetized Spark Views</p>
+                        <p className="text-[11px] text-gray-500 mt-1">Real-time watch time & view ledger is currently offline</p>
                       </div>
-                      <div className="bg-white/5 border border-white/10 rounded-2xl p-4 text-center">
-                        <span className="text-2xl mb-1 block">💬</span>
-                        <p className="text-white text-xl font-black">
-                          {sparkReplies.length}
-                        </p>
-                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-1">Replies</p>
-                      </div>
-                    </div>
+                    ) : (
+                      <>
+                        <div className="grid grid-cols-2 gap-3 mb-6">
+                          <div className="bg-white/5 border border-white/10 rounded-2xl p-4 text-center">
+                            <span className="text-2xl mb-1 block">👁️</span>
+                            <p className="text-white text-xl font-black">
+                              {(spark.views || 0).toLocaleString()}
+                            </p>
+                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-1">Total Views</p>
+                          </div>
+                          <div className="bg-white/5 border border-white/10 rounded-2xl p-4 text-center">
+                            <span className="text-2xl mb-1 block">💬</span>
+                            <p className="text-white text-xl font-black">
+                              {sparkReplies.length}
+                            </p>
+                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-1">Replies</p>
+                          </div>
+                        </div>
 
-                    {/* Seen-by list */}
-                    <div className="mb-6">
-                      <SparkSeenBy
-                        viewers={(spark.viewedBy || [])
-                          .map((v: any) => ({
-                            id: v.id,
-                            username: v.username,
-                            displayName: v.displayName,
-                            avatar: v.avatar,
-                            isVerified: v.isVerified,
-                            viewedAgo: formatViewedAgo(v.timestamp),
-                          }))
-                          .slice()
-                          .reverse()}
-                        totalViews={(spark.viewedBy || []).length}
-                        onViewProfile={(username: string) => {
-                          setActiveSheet(null);
-                          onClose();
-                          navigate(`/profile/${username.replace("@", "")}`);
-                        }}
-                      />
-                    </div>
+                        {/* Seen-by list */}
+                        <div className="mb-6">
+                          <SparkSeenBy
+                            viewers={(spark.viewedBy || [])
+                              .map((v: any) => ({
+                                id: v.id,
+                                username: v.username,
+                                displayName: v.displayName,
+                                avatar: v.avatar,
+                                isVerified: v.isVerified,
+                                viewedAgo: formatViewedAgo(v.timestamp),
+                              }))
+                              .slice()
+                              .reverse()}
+                            totalViews={(spark.viewedBy || []).length}
+                            onViewProfile={(username: string) => {
+                              setActiveSheet(null);
+                              onClose();
+                              navigate(`/profile/${username.replace("@", "")}`);
+                            }}
+                          />
+                        </div>
+                      </>
+                    )}
 
                     {/* Reactions section */}
                     <div className="mb-6">

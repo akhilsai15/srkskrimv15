@@ -9,6 +9,7 @@ import { ImmersivePostViewer } from '../components/ImmersivePostViewer';
 import { useSocialCounts, useFollowStatus, sendRequest, hasSentRequest, blockUser, unblockUser, muteUser, unmuteUser, isBlocked, isMuted, sortWithPinnedFirst, usePinnedPosts, getProfileLinks, getMutualFollowers, getPeopleAlsoFollow, isCloseFriend, toggleCloseFriend } from '../lib/mock/mockSocialGraph';
 import { useCurrentUser } from '../hooks/useCurrentUser';
 import { useSignalStore, simulateCreatorPost } from '../store/signalStore';
+import { apiClient } from '../lib/apiClient';
 import { MessageRequestSheet } from '../components/MessageRequestSheet';
 import { ShareProfileSheet } from '../components/ShareProfileSheet';
 import { StatBreakdownSheet } from '../components/StatBreakdownSheet';
@@ -54,7 +55,10 @@ export default function OtherUserProfileScreen() {
   const followStatus = useFollowStatus(user.username);
   const socialCounts = useSocialCounts(user.username, user.followers, user.following);
   const updatedUserWithCounts = { ...user, followers: socialCounts.followers };
-  const stats = React.useMemo(() => getStats(updatedUserWithCounts), [updatedUserWithCounts.followers]);
+  const mockStats = React.useMemo(() => getStats(updatedUserWithCounts), [updatedUserWithCounts.followers]);
+  const [creatorStats, setCreatorStats] = useState<any>(null);
+  const [isStatsUnavailable, setIsStatsUnavailable] = useState(false);
+  const stats = creatorStats || mockStats;
   const [requestSent, setRequestSent] = useState(false);
   const [showRequestSheet, setShowRequestSheet] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -103,6 +107,21 @@ export default function OtherUserProfileScreen() {
 
         const recs = await getPeopleAlsoFollow(user.username || '', currentUser?.username);
         setPeopleAlsoFollow(recs);
+
+        // Try fetching real creator stats from API
+        try {
+          const unameClean = user.username?.replace('@', '') || '';
+          const res = await apiClient.get<any>(`/creator/stats?username=${unameClean}`);
+          if (res && typeof res === 'object') {
+            setCreatorStats(res);
+            setIsStatsUnavailable(false);
+          } else {
+            setIsStatsUnavailable(true);
+          }
+        } catch (err) {
+          console.warn("Real creator stats endpoint not available, setting unavailable state", err);
+          setIsStatsUnavailable(true);
+        }
 
         // Grid posts
         let userPosts = mockPosts.filter((p: any) => p.user === user.username || p.handle === user.username || p.handle === `@${user.username}`) as any[];
@@ -249,7 +268,13 @@ export default function OtherUserProfileScreen() {
             <p className="text-sm font-medium text-neon-purple/90 mb-3">{user.username.startsWith('@') ? user.username : `@${user.username}`}</p>
             
             <div className="mb-4">
-               <BadgeRow stats={stats} />
+               {isStatsUnavailable ? (
+                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-[#B026FF]/20 bg-[#B026FF]/5 text-[11px] text-gray-400 font-bold uppercase tracking-wider">
+                   <span>✨</span> Creator Level: Coming Soon
+                 </div>
+               ) : (
+                 <BadgeRow stats={creatorStats || stats} />
+               )}
             </div>
 
             <p className="text-sm text-gray-300 leading-relaxed max-w-[90%] mb-3">{user.bio || 'Living the dream on SkrimChat. Connect with me!'}</p>
@@ -313,28 +338,35 @@ export default function OtherUserProfileScreen() {
             </div>
 
             {/* Micro Stats Grid */}
-            <div className="grid grid-cols-4 gap-2 mb-6">
-               <button onClick={() => setActiveStatType('pulse')} className="bg-skrim-surface border border-white/5 rounded-xl p-3 flex flex-col items-center justify-center gap-1 group w-full">
-                 <Zap className="w-5 h-5 text-yellow-400 group-hover:drop-shadow-[0_0_8px_rgba(250,204,21,0.8)] transition-all" />
-                 <span className="text-[10px] text-gray-400">Score</span>
-                 <span className="text-xs font-bold text-white">{(stats.pulseScore >= 1000 ? (stats.pulseScore / 1000).toFixed(1) + 'K' : stats.pulseScore)}</span>
-               </button>
-               <button onClick={() => setActiveStatType('blaze')} className="bg-skrim-surface border border-white/5 rounded-xl p-3 flex flex-col items-center justify-center gap-1 group w-full">
-                 <span className="text-xl group-hover:scale-110 transition-transform">🔥</span>
-                 <span className="text-[10px] text-gray-400">Blaze Run</span>
-                 <span className="text-xs font-bold text-white">{stats.blazeRun}</span>
-               </button>
-               <button onClick={() => setActiveStatType('views')} className="bg-skrim-surface border border-white/5 rounded-xl p-3 flex flex-col items-center justify-center gap-1 group w-full">
-                 <Eye className="w-5 h-5 text-blue-400 group-hover:drop-shadow-[0_0_8px_rgba(96,165,250,0.8)] transition-all" />
-                 <span className="text-[10px] text-gray-400">Views</span>
-                 <span className="text-xs font-bold text-white">{(stats.profileViews >= 1000 ? (stats.profileViews / 1000).toFixed(1) + 'K' : stats.profileViews)}</span>
-               </button>
-               <button onClick={() => setActiveStatType('vibe')} className="bg-skrim-surface border border-white/5 rounded-xl p-3 flex flex-col items-center justify-center gap-1 group w-full">
-                 <span className="text-xl group-hover:scale-110 transition-transform">💜</span>
-                 <span className="text-[10px] text-gray-400">Rating</span>
-                 <span className="text-xs font-bold text-white">{stats.vibeRating}</span>
-               </button>
-            </div>
+            {isStatsUnavailable ? (
+               <div className="bg-skrim-surface/40 border border-[#B026FF]/10 rounded-xl p-4 text-center mb-6 shadow-inner">
+                  <p className="text-[10px] text-[#B026FF] font-bold tracking-wider uppercase">⚡ Creator Stats & Milestones</p>
+                  <p className="text-[11px] text-gray-500 mt-1">Real-time creator milestone ledger is currently offline</p>
+               </div>
+            ) : (
+               <div className="grid grid-cols-4 gap-2 mb-6">
+                  <button onClick={() => setActiveStatType('pulse')} className="bg-skrim-surface border border-white/5 rounded-xl p-3 flex flex-col items-center justify-center gap-1 group w-full">
+                    <Zap className="w-5 h-5 text-yellow-400 group-hover:drop-shadow-[0_0_8px_rgba(250,204,21,0.8)] transition-all" />
+                    <span className="text-[10px] text-gray-400">Score</span>
+                    <span className="text-xs font-bold text-white">{(stats.pulseScore >= 1000 ? (stats.pulseScore / 1000).toFixed(1) + 'K' : stats.pulseScore)}</span>
+                  </button>
+                  <button onClick={() => setActiveStatType('blaze')} className="bg-skrim-surface border border-white/5 rounded-xl p-3 flex flex-col items-center justify-center gap-1 group w-full">
+                    <span className="text-xl group-hover:scale-110 transition-transform">🔥</span>
+                    <span className="text-[10px] text-gray-400">Blaze Run</span>
+                    <span className="text-xs font-bold text-white">{stats.blazeRun}</span>
+                  </button>
+                  <button onClick={() => setActiveStatType('views')} className="bg-skrim-surface border border-white/5 rounded-xl p-3 flex flex-col items-center justify-center gap-1 group w-full">
+                    <Eye className="w-5 h-5 text-blue-400 group-hover:drop-shadow-[0_0_8px_rgba(96,165,250,0.8)] transition-all" />
+                    <span className="text-[10px] text-gray-400">Views</span>
+                    <span className="text-xs font-bold text-white">{(stats.profileViews >= 1000 ? (stats.profileViews / 1000).toFixed(1) + 'K' : stats.profileViews)}</span>
+                  </button>
+                  <button onClick={() => setActiveStatType('vibe')} className="bg-skrim-surface border border-white/5 rounded-xl p-3 flex flex-col items-center justify-center gap-1 group w-full">
+                    <span className="text-xl group-hover:scale-110 transition-transform">💜</span>
+                    <span className="text-[10px] text-gray-400">Rating</span>
+                    <span className="text-xs font-bold text-white">{stats.vibeRating}</span>
+                  </button>
+               </div>
+            )}
          </div>
       </div>
 
