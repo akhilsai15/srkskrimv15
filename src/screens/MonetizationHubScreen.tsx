@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, ChevronRight } from 'lucide-react';
 import { MONETIZATION_OPTIONS, EARNINGS_DATA } from '../lib/mock/monetizationMockData';
 import { useCountUp } from '../hooks/useCountUp';
 import { useWorlds } from '../hooks/useWorldMembership';
+import { apiClient } from '../lib/apiClient';
 
 export default function MonetizationHubScreen() {
   const navigate = useNavigate();
@@ -12,6 +13,23 @@ export default function MonetizationHubScreen() {
   const paidWorlds = worlds.filter((w) => (w as any).paid);
   const [worldPicker, setWorldPicker] = useState(false);
   const [worldsToast, setWorldsToast] = useState(false);
+  const [isProgramsOffline, setIsProgramsOffline] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    const checkPrograms = async () => {
+      try {
+        await apiClient.get('/monetization/platform-programs');
+        if (active) setIsProgramsOffline(false);
+      } catch (err) {
+        console.warn("Platform programs API is offline:", err);
+        if (active) setIsProgramsOffline(true);
+      }
+    };
+    checkPrograms();
+    return () => { active = false; };
+  }, []);
 
   const counter = useCountUp(EARNINGS_DATA.totalThisMonth, 900);
   const activeCount = MONETIZATION_OPTIONS.filter((o) => o.active).length;
@@ -46,6 +64,18 @@ export default function MonetizationHubScreen() {
         break;
       case 'paid_communities':
         handlePaidCommunities();
+        break;
+      case 'ad_revenue':
+        if (isProgramsOffline) {
+          setToastMessage("Real-time Ad Revenue validation is currently offline. Ad Revenue share is coming soon!");
+          setTimeout(() => setToastMessage(null), 3000);
+        }
+        break;
+      case 'creator_fund':
+        if (isProgramsOffline) {
+          setToastMessage("Real-time Creator Fund validation is currently offline. Creator Fund is coming soon!");
+          setTimeout(() => setToastMessage(null), 3000);
+        }
         break;
     }
   };
@@ -128,6 +158,52 @@ export default function MonetizationHubScreen() {
           </div>
         </div>
 
+        {/* Platform Programs */}
+        <div>
+          <h3 className="text-xs font-bold uppercase text-gray-400 mb-3">Platform Programs</h3>
+          <div className="flex flex-col gap-3">
+            <motion.button
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              onClick={() => handleOptionTap('ad_revenue')}
+              className="w-full text-left rounded-2xl border p-4 flex items-center gap-3 bg-skrim-surface border-white/5 opacity-85"
+            >
+              <span className="text-2xl opacity-50">📢</span>
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-white text-sm">Ad Revenue Share</p>
+                <p className="text-[11px] text-gray-500 leading-snug">Earn a share of revenue from overlay and banner ads served on your popular reels.</p>
+                <p className="text-[11px] font-bold mt-1.5 flex items-center gap-1 text-gray-500">
+                  {isProgramsOffline ? "○ Offline - Coming Soon" : "○ Not set up"}
+                </p>
+              </div>
+              <span className="shrink-0 text-[11px] font-bold px-3 py-1.5 rounded-lg border border-white/15 text-white">
+                Set Up →
+              </span>
+            </motion.button>
+
+            <motion.button
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.48 }}
+              onClick={() => handleOptionTap('creator_fund')}
+              className="w-full text-left rounded-2xl border p-4 flex items-center gap-3 bg-skrim-surface border-white/5 opacity-85"
+            >
+              <span className="text-2xl opacity-50">💎</span>
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-white text-sm">Creator Fund</p>
+                <p className="text-[11px] text-gray-500 leading-snug">Get rewarded directly from our platform pool for high engagement and viral posts.</p>
+                <p className="text-[11px] font-bold mt-1.5 flex items-center gap-1 text-gray-500">
+                  {isProgramsOffline ? "○ Offline - Coming Soon" : "○ Not set up"}
+                </p>
+              </div>
+              <span className="shrink-0 text-[11px] font-bold px-3 py-1.5 rounded-lg border border-white/15 text-white">
+                Set Up →
+              </span>
+            </motion.button>
+          </div>
+        </div>
+
         {/* Help card */}
         {activeCount < 3 && (
           <div className="bg-skrim-surface border-l-2 border-neon-purple rounded-xl p-4">
@@ -173,6 +249,15 @@ export default function MonetizationHubScreen() {
         <div className="fixed bottom-24 inset-x-0 flex justify-center z-[300] pointer-events-none">
           <div className="bg-[#1A1A24] border border-white/10 rounded-full px-4 py-2 text-xs font-bold text-white shadow-xl text-center max-w-[80%]">
             Create or manage a World to set up paid access
+          </div>
+        </div>
+      )}
+
+      {toastMessage && (
+        <div className="fixed bottom-24 inset-x-0 flex justify-center z-[300] pointer-events-none">
+          <div className="bg-[#1A1A24] border border-red-500/30 rounded-2xl px-5 py-3 text-xs font-bold text-white shadow-2xl text-center max-w-[85%] leading-relaxed flex items-center gap-2">
+            <span>⚠️</span>
+            <span>{toastMessage}</span>
           </div>
         </div>
       )}
