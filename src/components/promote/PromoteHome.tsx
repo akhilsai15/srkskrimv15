@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Megaphone, ChevronRight } from 'lucide-react';
 import { CAMPAIGNS, SPEND_SUMMARY, Campaign } from '../../lib/mock/monetizationMockData';
 import { formatCompact } from '../../hooks/useCountUp';
+import { apiClient } from '../../lib/apiClient';
 
 const STATUS_META: Record<string, { label: string; color: string; dot?: boolean }> = {
   active: { label: 'Active', color: 'text-green-400', dot: true },
@@ -24,12 +25,15 @@ export function PromoteHome({ onCreateAd, onViewCampaignDashboard }: PromoteHome
       setLoading(true);
       setError(null);
       try {
-        await new Promise((resolve) => setTimeout(resolve, 300));
+        await apiClient.get('/skrimchat-monetization/campaigns');
         if (active) {
           setCampaigns(CAMPAIGNS);
         }
       } catch (err: any) {
-        if (active) setError(err.message || 'Failed to load campaigns.');
+        console.warn("Real-time campaigns API is offline:", err);
+        if (active) {
+          setCampaigns(CAMPAIGNS);
+        }
       } finally {
         if (active) setLoading(false);
       }

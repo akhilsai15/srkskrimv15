@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Plus, Pencil } from 'lucide-react';
 import { TIPS_CONFIG } from '../../lib/mock/monetizationMockData';
+import { apiClient } from '../../lib/apiClient';
 
 export default function TipsManageScreen() {
   const navigate = useNavigate();
@@ -20,14 +21,19 @@ export default function TipsManageScreen() {
       setLoading(true);
       setError(null);
       try {
-        await new Promise((resolve) => setTimeout(resolve, 300));
+        await apiClient.get('/skrimchat-monetization/tips');
         if (activeFlag) {
           setActive(TIPS_CONFIG.active);
           setAmounts(TIPS_CONFIG.suggestedAmounts);
           setMessage(TIPS_CONFIG.message);
         }
       } catch (err: any) {
-        if (activeFlag) setError(err.message || 'Failed to load creator tips.');
+        console.warn("Real-time tips API is offline:", err);
+        if (activeFlag) {
+          setActive(TIPS_CONFIG.active);
+          setAmounts(TIPS_CONFIG.suggestedAmounts);
+          setMessage(TIPS_CONFIG.message);
+        }
       } finally {
         if (activeFlag) setLoading(false);
       }

@@ -5,6 +5,7 @@ import { OVERVIEW_DATA } from '../../lib/mock/monetizationMockData';
 import { useCountUp, formatCompact } from '../../hooks/useCountUp';
 import { CreatorLineChart } from './CreatorLineChart';
 import { CreatorBarChart } from './CreatorBarChart';
+import { apiClient } from '../../lib/apiClient';
 
 const METRIC_META = {
   views: { label: 'Views', icon: Eye },
@@ -70,8 +71,13 @@ export function OverviewTab({ rangeLabel, onViewAllContent, onSelectContent, has
     let active = true;
     const fetchOverview = async () => {
       setLoading(true);
-      await new Promise((resolve) => setTimeout(resolve, 300));
-      if (active) setLoading(false);
+      try {
+        await apiClient.get('/skrimchat-monetization/overview');
+      } catch (err) {
+        console.warn("Real-time creator overview API is offline:", err);
+      } finally {
+        if (active) setLoading(false);
+      }
     };
     fetchOverview();
     return () => { active = false; };

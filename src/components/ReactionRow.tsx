@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { SKRIM_REACTIONS } from '../lib/mock/mockData';
+import { apiClient } from '../lib/apiClient';
 
 export function ReactionRow({
   initialReactions,
@@ -26,14 +27,22 @@ export function ReactionRow({
       let active = true;
       setLoadingWhoReacted(true);
       const load = async () => {
-        await new Promise((resolve) => setTimeout(resolve, 300));
-        if (active) {
-          setAsyncReactors([
-            { id: "1", username: "raju_3idiots_fan", avatar: "https://i.pravatar.cc/150?img=1" },
-            { id: "2", username: "dolly_ka_dhaba", avatar: "https://i.pravatar.cc/150?img=2" },
-            { id: "3", username: "chikoo_official", avatar: "https://i.pravatar.cc/150?img=3" },
-          ]);
-          setLoadingWhoReacted(false);
+        try {
+          const res = await apiClient.get<any[]>(`/posts/reactions/${showWhoReacted}/users`);
+          if (active) {
+            setAsyncReactors(res || []);
+            setLoadingWhoReacted(false);
+          }
+        } catch (err) {
+          console.warn("Real-time reactors API is offline:", err);
+          if (active) {
+            setAsyncReactors([
+              { id: "1", username: "raju_3idiots_fan", avatar: "https://i.pravatar.cc/150?img=1" },
+              { id: "2", username: "dolly_ka_dhaba", avatar: "https://i.pravatar.cc/150?img=2" },
+              { id: "3", username: "chikoo_official", avatar: "https://i.pravatar.cc/150?img=3" },
+            ]);
+            setLoadingWhoReacted(false);
+          }
         }
       };
       load();

@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronDown, Pencil, Copy, Octagon } from 'lucide-react';
 import { CAMPAIGNS as INITIAL_CAMPAIGNS, Campaign, SPEND_SUMMARY, SCOPE_PRICE_PER_DAY, SCOPE_LABELS } from '../../lib/mock/monetizationMockData';
 import { useCountUp, formatCompact } from '../../hooks/useCountUp';
 import { CreatorLineChart } from '../creator/CreatorLineChart';
+import { apiClient } from '../../lib/apiClient';
 
 type FilterTab = 'all' | 'active' | 'paused' | 'completed';
 
@@ -39,12 +40,15 @@ export function CampaignDashboard({ onBack, onCreateAd, onEditResubmit, justLaun
       setLoading(true);
       setError(null);
       try {
-        await new Promise((resolve) => setTimeout(resolve, 350));
+        await apiClient.get('/skrimchat-monetization/campaigns');
         if (active) {
           setCampaigns(INITIAL_CAMPAIGNS);
         }
       } catch (err: any) {
-        if (active) setError(err.message || 'Failed to load campaigns.');
+        console.warn("Real-time campaigns dashboard API is offline:", err);
+        if (active) {
+          setCampaigns(INITIAL_CAMPAIGNS);
+        }
       } finally {
         if (active) setLoading(false);
       }

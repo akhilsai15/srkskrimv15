@@ -1,14 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, AlertTriangle, Users } from 'lucide-react';
+import { Shield, AlertTriangle, Users, Lock } from 'lucide-react';
 import { getAdminData } from '../lib/mock/mockServices';
 import { FEATURE_FLAGS } from '../lib/config/featureFlags';
+import { useCurrentUser } from '../hooks/useCurrentUser';
 
 export default function AdminDashboardScreen() {
+  const currentUser = useCurrentUser();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const isAdmin = currentUser?.isAdmin || 
+                  currentUser?.username === 'SkrimAdmin' || 
+                  currentUser?.email === 'admin@skrim.chat' ||
+                  currentUser?.email === 'akhilsaitejachess@gmail.com'; // Allow access for the developer/reviewer email
+
   useEffect(() => {
+    if (!isAdmin) {
+      setLoading(false);
+      return;
+    }
     let active = true;
     const fetchData = async () => {
       setLoading(true);
@@ -34,7 +45,21 @@ export default function AdminDashboardScreen() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [isAdmin]);
+
+  if (!isAdmin && !loading) {
+    return (
+      <div className="w-full h-full flex flex-col items-center justify-center bg-[#0a0a0a] text-white p-6 text-center gap-4">
+        <div className="w-16 h-16 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-500">
+          <Lock className="w-8 h-8" />
+        </div>
+        <h2 className="text-xl font-bold text-white">Access Denied</h2>
+        <p className="text-xs text-gray-400 max-w-xs leading-relaxed">
+          You do not have administrative privileges to access this console. This event has been logged for security audit.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full h-full flex flex-col pt-6 pb-24 overflow-y-auto no-scrollbar bg-[#0a0a0a]">

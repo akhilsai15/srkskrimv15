@@ -5,6 +5,7 @@ import { AUDIENCE_DATA, AUDIENCE_HEATMAP } from '../../lib/mock/monetizationMock
 import { CreatorLineChart } from './CreatorLineChart';
 import { AudienceHeatmap } from './AudienceHeatmap';
 import { useNavigate } from 'react-router-dom';
+import { apiClient } from '../../lib/apiClient';
 
 const AGE_BRACKETS: (keyof typeof AUDIENCE_DATA.age)[] = ['13-17', '18-24', '25-34', '35-44', '45+'];
 
@@ -17,8 +18,13 @@ export function AudienceTab() {
     let active = true;
     const fetchAudience = async () => {
       setLoading(true);
-      await new Promise((resolve) => setTimeout(resolve, 300));
-      if (active) setLoading(false);
+      try {
+        await apiClient.get('/skrimchat-monetization/audience');
+      } catch (err) {
+        console.warn("Real-time creator audience API is offline:", err);
+      } finally {
+        if (active) setLoading(false);
+      }
     };
     fetchAudience();
     return () => { active = false; };

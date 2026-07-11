@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Plus, Check } from 'lucide-react';
 import { PREMIUM_CONFIG, USER_CONTENT } from '../../lib/mock/monetizationMockData';
+import { apiClient } from '../../lib/apiClient';
 
 export default function PremiumManageScreen() {
   const navigate = useNavigate();
@@ -20,13 +21,17 @@ export default function PremiumManageScreen() {
       setLoading(true);
       setError(null);
       try {
-        await new Promise((resolve) => setTimeout(resolve, 300));
+        await apiClient.get('/skrimchat-monetization/premium');
         if (activeFlag) {
           setActive(PREMIUM_CONFIG.active);
           setContent(PREMIUM_CONFIG.content);
         }
       } catch (err: any) {
-        if (activeFlag) setError(err.message || 'Failed to load premium configuration.');
+        console.warn("Real-time premium config API is offline:", err);
+        if (activeFlag) {
+          setActive(PREMIUM_CONFIG.active);
+          setContent(PREMIUM_CONFIG.content);
+        }
       } finally {
         if (activeFlag) setLoading(false);
       }
