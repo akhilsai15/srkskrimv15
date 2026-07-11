@@ -40,12 +40,13 @@ export const RETENTION_CATEGORIES: { id: RetentionCategory; label: string; descr
 
 // Only these eight values are ever valid — 6 months and 1 year are resolved
 // with real calendar math rather than a flat 182/365-day approximation.
-export const RETENTION_DURATIONS = [1, 7, 28, 56, 84, 182, 365] as const;
+export const RETENTION_DURATIONS = [1, 7, 14, 28, 56, 84, 182, 365] as const;
 export type RetentionDurationDays = typeof RETENTION_DURATIONS[number];
 
 export const RETENTION_DURATION_LABELS: Record<RetentionDurationDays, string> = {
   1: '1 day',
   7: '7 days',
+  14: '14 days',
   28: '28 days',
   56: '56 days',
   84: '84 days',
