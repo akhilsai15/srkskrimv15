@@ -172,6 +172,33 @@ async function startServer() {
   });
 
   // ---------------------------------------------------------------------
+  // Mock S3 Presigned URL & S3 Upload endpoints for local preview development
+  // ---------------------------------------------------------------------
+  app.post("/media/presigned-url", (req, res) => {
+    const { path: s3Path } = req.body;
+    if (!s3Path) {
+      res.status(400).json({ error: "Missing path parameter" });
+      return;
+    }
+    // Return a mock upload URL pointing back to our own server
+    const host = req.get('host') || 'localhost:3000';
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+    const uploadUrl = `${protocol}://${host}/media/mock-upload?path=${encodeURIComponent(s3Path)}`;
+    res.json({ uploadUrl });
+  });
+
+  // Handle raw PUT upload of binary files
+  app.put("/media/mock-upload", express.raw({ type: "*/*", limit: "100mb" }), (req, res) => {
+    const s3Path = req.query.path as string;
+    if (!s3Path) {
+      res.status(400).json({ error: "Missing path query parameter" });
+      return;
+    }
+    console.log(`[MOCK S3] Received upload of size ${req.body?.length || 0} bytes for path: ${s3Path}`);
+    res.status(200).send("Upload succeeded");
+  });
+
+  // ---------------------------------------------------------------------
   // WebSocket Signaling (WebRTC 1:1 / group calling)
   // ---------------------------------------------------------------------
   const wss = new WebSocketServer({ noServer: true });

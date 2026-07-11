@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Camera, Image as ImageIcon, Video, Folder, Music, MapPin, X, File, Play, ChevronLeft, Gamepad2 } from 'lucide-react';
 import { triggerGalleryPicker } from '../lib/permissions/galleryPermission';
+import { uploadToS3 } from '../lib/services/s3Upload';
 import { triggerNativeFilePicker } from '../lib/permissions/filePicker';
 
 interface Props {
@@ -127,7 +128,7 @@ export function AttachmentPicker({ onSendPhoto, onSendVideo, onSendFile, onSendS
                 const files = await triggerNativeFilePicker({ accept: 'image/*', multiple: false });
                 if (files && files.length > 0) {
                   const objectUrl = trackUrl(URL.createObjectURL(files[0]));
-                  setSelectedItem({ id: `upload-${Date.now()}`, uri: objectUrl, isUpload: true });
+                  setSelectedItem({ id: `upload-${Date.now()}`, uri: objectUrl, isUpload: true, file: files[0] });
                   setStep('photo_preview');
                 }
               }} className="flex-1 py-2 bg-white/10 rounded-lg text-white font-medium text-sm flex items-center justify-center gap-2"><Camera size={16}/> Camera</button>
@@ -135,7 +136,7 @@ export function AttachmentPicker({ onSendPhoto, onSendVideo, onSendFile, onSendS
                 const files = await triggerGalleryPicker({ accept: 'image/*', multiple: false });
                 if (files && files.length > 0) {
                   const objectUrl = trackUrl(URL.createObjectURL(files[0]));
-                  setSelectedItem({ id: `upload-${Date.now()}`, uri: objectUrl, isUpload: true });
+                  setSelectedItem({ id: `upload-${Date.now()}`, uri: objectUrl, isUpload: true, file: files[0] });
                   setStep('photo_preview');
                 }
               }} className="flex-1 py-2 bg-white/10 rounded-lg text-white font-medium text-sm flex items-center justify-center gap-2"><ImageIcon size={16}/> Gallery</button>
@@ -163,8 +164,22 @@ export function AttachmentPicker({ onSendPhoto, onSendVideo, onSendFile, onSendS
             <div className="flex justify-between items-center px-4 py-3 border-b border-white/5">
               <button onClick={() => setStep('photo')} className="text-white flex items-center"><ChevronLeft size={20}/> Back</button>
               <button 
-                onClick={() => {
-                  onSendPhoto({ ...selectedItem, caption: viewOnce ? '' : caption, filter, viewOnce });
+                onClick={async () => {
+                  let finalPhoto = { ...selectedItem, caption: viewOnce ? '' : caption, filter, viewOnce };
+                  if (selectedItem.isUpload && selectedItem.file) {
+                    try {
+                      const uploadResult = await uploadToS3(
+                        selectedItem.file,
+                        'chat-media',
+                        selectedItem.id,
+                        selectedItem.file.name
+                      );
+                      finalPhoto.uri = uploadResult.url;
+                    } catch (err) {
+                      console.warn("S3 chat photo upload failed, using local URL fallback", err);
+                    }
+                  }
+                  onSendPhoto(finalPhoto);
                   setViewOnce(false);
                   onClose();
                 }}
@@ -243,8 +258,19 @@ export function AttachmentPicker({ onSendPhoto, onSendVideo, onSendFile, onSendS
               <button onClick={async () => {
                 const files = await triggerGalleryPicker({ accept: 'video/*', multiple: false });
                 if (files && files.length > 0) {
-                  const objectUrl = trackUrl(URL.createObjectURL(files[0]));
-                  onSendVideo({ id: `upload-${Date.now()}`, uri: objectUrl, isUpload: true, duration: '0:05' });
+                  const file = files[0];
+                  const objectUrl = trackUrl(URL.createObjectURL(file));
+                  const id = `upload-${Date.now()}`;
+                  
+                  let finalVideo = { id, uri: objectUrl, isUpload: true, duration: '0:05' };
+                  try {
+                    const uploadResult = await uploadToS3(file, 'chat-media', id, file.name);
+                    finalVideo.uri = uploadResult.url;
+                  } catch (err) {
+                    console.warn("S3 chat video upload failed, using local URL fallback", err);
+                  }
+                  
+                  onSendVideo(finalVideo);
                   onClose();
                 }
               }} className="w-full py-2 bg-white/10 rounded-lg text-white font-medium text-sm flex items-center justify-center gap-2"><Video size={16}/> Choose from Gallery</button>
@@ -283,10 +309,20 @@ export function AttachmentPicker({ onSendPhoto, onSendVideo, onSendFile, onSendS
                 if (files && files.length > 0) {
                   const file = files[0];
                   const objectUrl = trackUrl(URL.createObjectURL(file));
+                  const id = `upload-${Date.now()}`;
                   const sizeKb = file.size / 1024;
                   const sizeLabel = sizeKb > 1024 ? `${(sizeKb / 1024).toFixed(1)} MB` : `${Math.round(sizeKb)} KB`;
                   const computedType = file.type.includes('pdf') ? 'pdf' : file.type.includes('image') ? 'image' : 'file';
-                  onSendFile({ name: file.name, size: sizeLabel, uri: objectUrl, isUpload: true, fileType: computedType, type: computedType });
+                  
+                  let finalFile = { name: file.name, size: sizeLabel, uri: objectUrl, isUpload: true, fileType: computedType, type: computedType, id };
+                  try {
+                    const uploadResult = await uploadToS3(file, 'chat-media', id, file.name);
+                    finalFile.uri = uploadResult.url;
+                  } catch (err) {
+                    console.warn("S3 chat file upload failed, using local URL fallback", err);
+                  }
+                  
+                  onSendFile(finalFile);
                   onClose();
                 }
               }} className="w-full py-2 bg-white/10 rounded-lg text-white font-medium text-sm flex items-center justify-center gap-2"><Folder size={16}/> Browse Files</button>

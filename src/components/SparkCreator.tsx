@@ -5,6 +5,7 @@ import { SKRIM_REACTIONS, mockUsers } from '../lib/mock/mockData';
 import { MusicPicker } from './MusicPicker';
 import { useCloseFriends } from '../lib/mock/mockSocialGraph';
 import { compressImage } from '../lib/services/mediaStorage';
+import { uploadToS3 } from '../lib/services/s3Upload';
 import { scanMedia } from '../lib/services/contentModeration';
 import { useModerationLogStore } from '../store/moderationLogStore';
 import { useSignalStore } from '../store/signalStore';
@@ -290,6 +291,27 @@ export function SparkCreator({ isOpen, onClose, onPost, respondingToChallenge, r
     const mediaMentions = mode !== 'text' ? imageTaggedUsers.map(u => u.username) : [];
     const newSparkId = `spark_${Date.now()}`;
 
+    let imageUrl = mode !== 'text' && selectedMedia?.type === 'image' ? selectedMedia.url : undefined;
+    let videoUrl = mode !== 'text' && selectedMedia?.type === 'video' ? selectedMedia.url : undefined;
+
+    if (mode !== 'text' && selectedMedia?.file) {
+      try {
+        const uploadResult = await uploadToS3(
+          selectedMedia.file,
+          'spark-media',
+          newSparkId,
+          selectedMedia.file.name
+        );
+        if (selectedMedia.type === 'image') {
+          imageUrl = uploadResult.url;
+        } else if (selectedMedia.type === 'video') {
+          videoUrl = uploadResult.url;
+        }
+      } catch (err) {
+        console.warn("S3 Spark media upload failed, using local/data URL fallback", err);
+      }
+    }
+
     const postData: any = {
       id: newSparkId,
       type: mode === 'text' ? 'text' : selectedMedia?.type || 'image',
@@ -298,8 +320,8 @@ export function SparkCreator({ isOpen, onClose, onPost, respondingToChallenge, r
       mentions: Array.from(new Set([...textMentions, ...mediaMentions])),
       hashtags: (mode === 'text' ? text : caption).match(/#[\w_]+/g) || [],
       backgroundTheme: selectedTheme.gradient,
-      image: mode !== 'text' && selectedMedia?.type === 'image' ? selectedMedia.url : undefined,
-      video: mode !== 'text' && selectedMedia?.type === 'video' ? selectedMedia.url : undefined,
+      image: imageUrl,
+      video: videoUrl,
       hasAudio: mode !== 'text' && selectedMedia?.type === 'video' ? !isVideoMuted : undefined,
       duration: mode !== 'text' && selectedMedia?.type === 'video' ? Math.floor(Math.random()*15)+10 : undefined,
       textOverlay: mode !== 'text' && selectedMedia?.type === 'image' && overlayText.trim() ? { text: overlayText, position: overlayPos, color: overlayColor, fontSize: 32 } : undefined,

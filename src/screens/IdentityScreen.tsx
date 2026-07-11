@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Edit3, Share, Camera, MapPin, Link as LinkIcon, Plus, X, Zap, Eye, Calendar, Smile, Bookmark, Repeat, User as UserIcon, LogOut, Settings, Bell, Users, BarChart3, DollarSign, Shield, PlaySquare, Heart, MessageCircle, Check, Download, Timer, Archive, Pin, PinOff, QrCode, BookOpen } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { getAllRecords, deleteRecord, saveRecord } from '../lib/services/mediaStorage';
+import { uploadToS3 } from '../lib/services/s3Upload';
 import { mockPosts, mockUsers, mockReels, mockSparks } from '../lib/mock/mockData';
 import { sortWithPinnedFirst, togglePinPost, usePinnedPosts, getProfileLinks, type ProfileLink } from '../lib/mock/mockSocialGraph';
 import { useAuthStore } from '../store/authStore';
@@ -717,8 +718,53 @@ export default function IdentityScreen() {
     setToastMessage('Post updated successfully');
   };
 
-  const handleSaveProfile = () => {
+  const dataURLtoBlob = (dataurl: string) => {
+    try {
+      const arr = dataurl.split(',');
+      const mime = arr[0].match(/:(.*?);/)?.[1] || 'image/png';
+      const bstr = atob(arr[1]);
+      let n = bstr.length;
+      const u8arr = new Uint8Array(n);
+      while (n--) {
+        u8arr[n] = bstr.charCodeAt(n);
+      }
+      return new Blob([u8arr], { type: mime });
+    } catch (e) {
+      console.error("Failed to parse data URL to Blob", e);
+      return null;
+    }
+  };
+
+  const handleSaveProfile = async () => {
     if (!user) return;
+
+    let finalAvatar = editAvatar;
+    let finalCover = editCover;
+
+    if (editAvatar && editAvatar.startsWith('data:')) {
+      const blob = dataURLtoBlob(editAvatar);
+      if (blob) {
+        try {
+          const result = await uploadToS3(blob, 'profile-pictures', user.username || 'current_user', 'avatar.png');
+          finalAvatar = result.url;
+        } catch (err) {
+          console.warn("S3 avatar upload failed, falling back to local Base64 storage", err);
+        }
+      }
+    }
+
+    if (editCover && editCover.startsWith('data:')) {
+      const blob = dataURLtoBlob(editCover);
+      if (blob) {
+        try {
+          const result = await uploadToS3(blob, 'profile-pictures', user.username || 'current_user', 'cover.png');
+          finalCover = result.url;
+        } catch (err) {
+          console.warn("S3 cover upload failed, falling back to local Base64 storage", err);
+        }
+      }
+    }
+
     const updatedUser = {
       ...user,
       fullName: editName,
@@ -728,13 +774,11 @@ export default function IdentityScreen() {
       links: editLinks.filter(l => l.url.trim().length > 0),
       website: editLinks.find(l => l.url.trim().length > 0)?.url || '', // keep legacy field in sync for any older code paths
       location: editLocation,
-      avatar: editAvatar,
-      cover: editCover,
+      avatar: finalAvatar,
+      cover: finalCover,
     };
     localStorage.setItem('skrimchat_user', JSON.stringify(updatedUser));
-    if (editAvatar && editAvatar.startsWith('data:')) {
-      localStorage.setItem('skrimchat_avatar', editAvatar); // keep it synced if used elsewhere
-    }
+    localStorage.setItem('skrimchat_avatar', finalAvatar);
     window.dispatchEvent(new Event('skrimchat_user_updated'));
     setIsEditing(false);
   };
@@ -753,11 +797,25 @@ export default function IdentityScreen() {
     e.target.value = '';
   };
 
-  const handleEditorSave = (dataUrl: string) => {
+  const handleEditorSave = async (dataUrl: string) => {
     if (!user) return;
-    const updatedUser = { ...user, [editorMode]: dataUrl };
+
+    let finalUrl = dataUrl;
+    if (dataUrl && dataUrl.startsWith('data:')) {
+      const blob = dataURLtoBlob(dataUrl);
+      if (blob) {
+        try {
+          const result = await uploadToS3(blob, 'profile-pictures', user.username || 'current_user', `${editorMode}.png`);
+          finalUrl = result.url;
+        } catch (err) {
+          console.warn(`S3 ${editorMode} upload failed, falling back to local Base64 storage`, err);
+        }
+      }
+    }
+
+    const updatedUser = { ...user, [editorMode]: finalUrl };
     localStorage.setItem('skrimchat_user', JSON.stringify(updatedUser));
-    if (editorMode === 'avatar') localStorage.setItem('skrimchat_avatar', dataUrl);
+    if (editorMode === 'avatar') localStorage.setItem('skrimchat_avatar', finalUrl);
     window.dispatchEvent(new Event('skrimchat_user_updated'));
     setEditorSrc(null);
   };

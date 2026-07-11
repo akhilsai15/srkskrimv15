@@ -4,6 +4,7 @@
  */
 
 import { apiClient } from '../apiClient';
+import { uploadToS3 } from '../services/s3Upload';
 
 export interface Book {
   id: string;
@@ -176,13 +177,17 @@ export async function addBookWithBlob(bookMeta: Omit<Book, 'id' | 'uploadedAt' |
   const id = 'b_' + Math.random().toString(36).substr(2, 9);
   
   try {
-    const formData = new FormData();
-    formData.append('file', fileBlob);
-    formData.append('metadata', JSON.stringify(bookMeta));
-    const created = await apiClient.post<Book>('/books/upload', formData);
+    const uploadResult = await uploadToS3(fileBlob, 'books-media', id, bookMeta.fileName || 'publication.pdf');
+    const s3Url = uploadResult.url;
+
+    const bookPayload = {
+      ...bookMeta,
+      dataUrl: s3Url,
+    };
+    const created = await apiClient.post<Book>('/books', bookPayload);
     return created;
   } catch (err) {
-    console.warn("TODO: Real backend POST /books/upload not ready. Falling back to IndexedDB/local storage.", err);
+    console.warn("S3 books-media upload/save flow failed, falling back to local storage", err);
   }
 
   await storePDFBlob(id, fileBlob);

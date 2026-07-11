@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AvatarWithRing } from '../components/ui';
 import { saveRecord, getAllRecords, deleteRecord, compressImage } from '../lib/services/mediaStorage';
+import { uploadToS3 } from '../lib/services/s3Upload';
 import { scanMediaBatch } from '../lib/services/contentModeration';
 import { useModerationLogStore } from '../store/moderationLogStore';
 import {
@@ -1646,7 +1647,7 @@ function CollabPartnerSheet({ onPick, onClose }: {
 // post — Skrim decides the post shape from what you actually attached,
 // so there's no upfront type lock-in and no separate "Gallery" mode
 // that silently caps you at one photo.
-type MediaItem = { id: string; url: string; kind: 'image' | 'video'; thumbnail?: string };
+type MediaItem = { id: string; url: string; kind: 'image' | 'video'; thumbnail?: string; file?: File };
 const MAX_MEDIA = 10;
 
 // Swatch palette for colored text posts — bright, legible-with-black-text
@@ -2106,64 +2107,70 @@ function PulseCreateSheet({ isOpen, onClose, currentUser, onPost, onSchedule, dr
             try { videoElement.load(); } catch (e) {}
 
             generateVideoThumbnail(fileUrl)
-              .then(thumb => {
-                resolve({
-                  id: `m_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-                  url: fileUrl,
-                  kind: 'video',
-                  thumbnail: thumb,
-                });
-              })
-              .catch((err) => {
-                console.error("Failed to generate video thumbnail:", err);
-                resolve({
-                  id: `m_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-                  url: fileUrl,
-                  kind: 'video',
-                });
-              });
-          };
-          videoElement.onerror = () => {
-            videoElement.onloadedmetadata = null;
-            videoElement.onerror = null;
-            videoElement.src = '';
-            try { videoElement.load(); } catch (e) {}
-
-            generateVideoThumbnail(fileUrl)
-              .then(thumb => {
-                resolve({
-                  id: `m_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-                  url: fileUrl,
-                  kind: 'video',
-                  thumbnail: thumb,
-                });
-              })
-              .catch((err) => {
-                console.error("Failed to generate video thumbnail:", err);
-                resolve({
-                  id: `m_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-                  url: fileUrl,
-                  kind: 'video',
-                });
-              });
-          };
-        } else {
-          compressImage(fileUrl)
-            .then(compressedUrl => {
-              resolve({
-                id: `m_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-                url: compressedUrl,
-                kind: 'image',
-              });
-            })
-            .catch((err) => {
-              console.error("Failed to compress image:", err);
-              resolve({
-                id: `m_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-                url: fileUrl,
-                kind: 'image',
-              });
-            });
+               .then(thumb => {
+                 resolve({
+                   id: `m_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+                   url: fileUrl,
+                   kind: 'video',
+                   thumbnail: thumb,
+                   file: f,
+                 });
+               })
+               .catch((err) => {
+                 console.error("Failed to generate video thumbnail:", err);
+                 resolve({
+                   id: `m_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+                   url: fileUrl,
+                   kind: 'video',
+                   file: f,
+                 });
+               });
+           };
+           videoElement.onerror = () => {
+             videoElement.onloadedmetadata = null;
+             videoElement.onerror = null;
+             videoElement.src = '';
+             try { videoElement.load(); } catch (e) {}
+ 
+             generateVideoThumbnail(fileUrl)
+               .then(thumb => {
+                 resolve({
+                   id: `m_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+                   url: fileUrl,
+                   kind: 'video',
+                   thumbnail: thumb,
+                   file: f,
+                 });
+               })
+               .catch((err) => {
+                 console.error("Failed to generate video thumbnail:", err);
+                 resolve({
+                   id: `m_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+                   url: fileUrl,
+                   kind: 'video',
+                   file: f,
+                 });
+               });
+           };
+         } else {
+           compressImage(fileUrl)
+             .then(compressedUrl => {
+               resolve({
+                 id: `m_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+                 url: compressedUrl,
+                 kind: 'image',
+                 file: f,
+               });
+             })
+             .catch((err) => {
+               console.error("Failed to compress image:", err);
+               resolve({
+                 id: `m_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+                 url: fileUrl,
+                 kind: 'image',
+                 file: f,
+               });
+             });
         }
       };
       r.readAsDataURL(f);
@@ -2207,7 +2214,7 @@ function PulseCreateSheet({ isOpen, onClose, currentUser, onPost, onSchedule, dr
     });
   };
 
-  const handlePost = () => {
+  const handlePost = async () => {
     if (isCollabMode) {
       if (!collabPartner || media.filter(m => m.kind === 'image').length === 0) return;
     } else if (isPollMode) {
@@ -2216,6 +2223,25 @@ function PulseCreateSheet({ isOpen, onClose, currentUser, onPost, onSchedule, dr
       return;
     }
     const id = `pulse_${Date.now()}`;
+
+    // Upload all attached files in parallel to S3
+    const uploadedMediaItems = await Promise.all(
+      media.map(async (item) => {
+        if (item.file) {
+          try {
+            const result = await uploadToS3(item.file, 'pulse-media', id, item.file.name);
+            return {
+              ...item,
+              url: result.url,
+            };
+          } catch (err) {
+            console.warn(`S3 upload failed for ${item.id}, falling back to local URL`, err);
+          }
+        }
+        return item;
+      })
+    );
+
     const base = {
       id,
       user: currentUser?.username || 'You',
@@ -2235,8 +2261,8 @@ function PulseCreateSheet({ isOpen, onClose, currentUser, onPost, onSchedule, dr
       taggedUsers,
     };
 
-    const video = media.find(m => m.kind === 'video');
-    const images = media.filter(m => m.kind === 'image').map(m => m.url);
+    const video = uploadedMediaItems.find(m => m.kind === 'video');
+    const images = uploadedMediaItems.filter(m => m.kind === 'image').map(m => m.url);
 
     let newPost: any;
     if (isCollabMode && collabPartner) {

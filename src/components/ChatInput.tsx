@@ -8,6 +8,7 @@ import { Mood } from '../types';
 import { CHAT_MOODS } from '../constants/moods';
 import { autocorrectAtCursor } from '../lib/autocorrect';
 import { getAudioWaveformPeaks } from '../lib/services/mediaStorage';
+import { uploadToS3 } from '../lib/services/s3Upload';
 
 interface Props {
   currentMood: Mood;
@@ -167,13 +168,25 @@ export function ChatInput({ currentMood, onSetMood, onSendMessage, onSendVoice, 
         mediaRecorder.onstop = async () => {
           if (!cancel && actualDuration > 0) {
             const audioBlob = new Blob(audioChunksRef.current, { type: mediaRecorder.mimeType || 'audio/webm' });
-            const reader = new FileReader();
-            reader.onloadend = async () => {
-              const base64Url = reader.result as string;
-              const realPeaks = await getAudioWaveformPeaks(audioBlob, 40);
-              onSendVoice(actualDuration, realPeaks, base64Url);
-            };
-            reader.readAsDataURL(audioBlob);
+            
+            const id = `voice_${Date.now()}`;
+            let voiceUri = '';
+            try {
+              const uploadResult = await uploadToS3(audioBlob, 'voice-notes', id, 'voice_note.webm');
+              voiceUri = uploadResult.url;
+            } catch (err) {
+              console.warn("S3 voice-note upload failed, falling back to data URL", err);
+              // Fallback to dataURL
+              const dataUrl = await new Promise<string>((resolve) => {
+                const r = new FileReader();
+                r.onloadend = () => resolve(r.result as string);
+                r.readAsDataURL(audioBlob);
+              });
+              voiceUri = dataUrl;
+            }
+
+            const realPeaks = await getAudioWaveformPeaks(audioBlob, 40);
+            onSendVoice(actualDuration, realPeaks, voiceUri);
           }
         };
         try {
