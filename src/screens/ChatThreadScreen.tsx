@@ -27,6 +27,7 @@ import { SuggestedReplies } from '../components/SuggestedReplies';
 import { getSmartReplies } from '../lib/smartRepliesEngine';
 import { useCallStore } from '../store/callStore';
 import { useSignalStore } from '../store/signalStore';
+import { getSignalingUrl } from '../lib/getSignalingUrl';
 
 const generateWaveform = (barCount = 40) => {
   return Array.from({ length: barCount }, () => {
@@ -142,12 +143,7 @@ export default function ChatThreadScreen() {
     setWsLoading(true);
     setWsError(null);
 
-    const configSignalingUrl = (import.meta as any).env?.VITE_SIGNALING_URL;
-    let wsUrl = configSignalingUrl;
-    if (!wsUrl) {
-      const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      wsUrl = `${wsProtocol}//${window.location.host}/ws`;
-    }
+    const wsUrl = getSignalingUrl();
     let ws: WebSocket;
 
     try {

@@ -12,6 +12,7 @@
 //   callEngine.accept() / callEngine.decline() / callEngine.hangup()
 //   callEngine.setMuted(true) / callEngine.setCameraOff(true)
 import { CallManager } from "./webrtc";
+import { getSignalingUrl } from "../../getSignalingUrl";
 
 export type CallEngineEvent =
   | "localStream"
@@ -79,12 +80,7 @@ class CallEngine {
     }
     if (typeof window === "undefined") return;
 
-    const configSignalingUrl = (import.meta as any).env?.VITE_SIGNALING_URL;
-    let wsUrl = configSignalingUrl;
-    if (!wsUrl) {
-      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-      wsUrl = `${protocol}//${window.location.host}/ws`;
-    }
+    const wsUrl = getSignalingUrl();
     const ws = new WebSocket(wsUrl);
     this.ws = ws;
 
