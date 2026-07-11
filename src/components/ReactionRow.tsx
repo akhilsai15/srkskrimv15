@@ -107,6 +107,10 @@ export function ReactionRow({
     });
     setActiveReactionId(newActive);
 
+    apiClient.post('/posts/reactions', { reactionId: newActive, isRemoving }).catch(err => {
+      console.warn("Real-time reaction submission API is offline:", err);
+    });
+
     onReact?.(newActive, newActive ? SKRIM_REACTIONS.find(x => x.id === newActive) : undefined);
   };
 

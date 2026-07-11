@@ -66,15 +66,22 @@ interface OverviewTabProps {
 export function OverviewTab({ rangeLabel, onViewAllContent, onSelectContent, hasData, onCreatePost }: OverviewTabProps) {
   const [expandedMetric, setExpandedMetric] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [overviewData, setOverviewData] = useState<typeof OVERVIEW_DATA>(OVERVIEW_DATA);
 
   useEffect(() => {
     let active = true;
     const fetchOverview = async () => {
       setLoading(true);
       try {
-        await apiClient.get('/skrimchat-monetization/overview');
+        const res = await apiClient.get<any>('/skrimchat-monetization/overview');
+        if (active) {
+          setOverviewData(res || OVERVIEW_DATA);
+        }
       } catch (err) {
         console.warn("Real-time creator overview API is offline:", err);
+        if (active) {
+          setOverviewData(OVERVIEW_DATA);
+        }
       } finally {
         if (active) setLoading(false);
       }
@@ -105,7 +112,7 @@ export function OverviewTab({ rangeLabel, onViewAllContent, onSelectContent, has
     );
   }
 
-  const { metrics, audienceGrowth, insights, topContent } = OVERVIEW_DATA;
+  const { metrics, audienceGrowth, insights, topContent } = overviewData;
 
   return (
     <motion.div key={rangeLabel} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.3 }} className="p-4 flex flex-col gap-6">
@@ -130,7 +137,7 @@ export function OverviewTab({ rangeLabel, onViewAllContent, onSelectContent, has
       <div className="bg-skrim-surface rounded-2xl border border-white/5 p-4">
         <h3 className="text-xs font-bold uppercase text-gray-400 mb-3">Reel Performance</h3>
         <CreatorLineChart
-          data={OVERVIEW_DATA.reelPerformance.map((d) => ({ label: d.day, value: d.views }))}
+          data={overviewData.reelPerformance.map((d) => ({ label: d.day, value: d.views }))}
           color="#B026FF"
           formatTooltip={(label, value) => `${label}: ${value.toLocaleString()} views`}
         />

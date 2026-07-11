@@ -43,6 +43,7 @@ export async function sendRequest(fromUsername: string, targetUsername: string, 
     await apiClient.post('/skrimchat-social-graph/message-requests/send', { fromUsername, targetUsername, message });
   } catch (err) {
     console.warn("TODO: Real backend POST sendRequest not ready.", err);
+    throw err;
   }
   const requests = await getMessageRequests();
   if (!requests.some((r: any) => r.fromUsername === fromUsername && r.targetUsername === targetUsername)) {
@@ -64,6 +65,7 @@ export async function acceptRequest(requestId: string): Promise<void> {
     await apiClient.post(`/skrimchat-social-graph/message-requests/accept/${requestId}`);
   } catch (err) {
     console.warn("TODO: Real backend acceptRequest not ready.", err);
+    throw err;
   }
   let requests = await getMessageRequests();
   const request = requests.find((r: any) => r.id === requestId);
@@ -99,6 +101,7 @@ export async function declineRequest(requestId: string): Promise<void> {
     await apiClient.post(`/skrimchat-social-graph/message-requests/decline/${requestId}`);
   } catch (err) {
     console.warn("TODO: Real backend declineRequest not ready.", err);
+    throw err;
   }
   let requests = await getMessageRequests();
   requests = requests.filter((r: any) => r.id !== requestId);
@@ -189,6 +192,7 @@ export async function followUser(targetUsername: string, initialFollowers: numbe
     await apiClient.post('/skrimchat-social-graph/follow', { targetUsername });
   } catch (err) {
     console.warn("TODO: Real backend POST /skrimchat-social-graph/follow not ready.", err);
+    throw err;
   }
   const arr = await getFollowingArray();
   if (!arr.includes(targetUsername)) {
@@ -229,6 +233,7 @@ export async function unfollowUser(targetUsername: string, initialFollowers: num
     await apiClient.post('/skrimchat-social-graph/unfollow', { targetUsername });
   } catch (err) {
     console.warn("TODO: Real backend POST /skrimchat-social-graph/unfollow not ready.", err);
+    throw err;
   }
   let arr = await getFollowingArray();
   if (arr.includes(targetUsername)) {
@@ -354,6 +359,7 @@ export async function sendFollowRequest(fromUsername: string, toUsername: string
     await apiClient.post('/skrimchat-social-graph/follow-requests', { fromUsername, toUsername });
   } catch (err) {
     console.warn("TODO: Real backend POST follow-requests not ready.", err);
+    throw err;
   }
   const reqs = await getFollowRequests();
   if (!reqs.find((r: any) => r.fromUsername === fromUsername && r.toUsername === toUsername)) {
@@ -373,6 +379,7 @@ export async function acceptFollowRequest(requestId: string): Promise<void> {
     await apiClient.post(`/skrimchat-social-graph/follow-requests/accept/${requestId}`);
   } catch (err) {
     console.warn("TODO: Real backend POST follow-requests/accept not ready.", err);
+    throw err;
   }
   let reqs = await getFollowRequests();
   const req = reqs.find((r: any) => r.id === requestId);
@@ -391,6 +398,7 @@ export async function declineFollowRequest(requestId: string): Promise<void> {
     await apiClient.post(`/skrimchat-social-graph/follow-requests/decline/${requestId}`);
   } catch (err) {
     console.warn("TODO: Real backend POST follow-requests/decline not ready.", err);
+    throw err;
   }
   let reqs = (await getFollowRequests()).filter((r: any) => r.id !== requestId);
   localStorage.setItem('skrimchat_follow_requests', JSON.stringify(reqs));
@@ -412,6 +420,7 @@ export async function blockUser(username: string): Promise<void> {
     await apiClient.post('/skrimchat-social-graph/block', { username });
   } catch (err) {
     console.warn("TODO: Real backend POST block not ready.", err);
+    throw err;
   }
   const list = await getBlockedUsers();
   if (!list.includes(username)) { list.push(username); localStorage.setItem('skrimchat_blocked_users', JSON.stringify(list)); window.dispatchEvent(new Event('skrimchat_privacy_updated')); }
@@ -422,6 +431,7 @@ export async function unblockUser(username: string): Promise<void> {
     await apiClient.post('/skrimchat-social-graph/unblock', { username });
   } catch (err) {
     console.warn("TODO: Real backend POST unblock not ready.", err);
+    throw err;
   }
   const list = (await getBlockedUsers()).filter(u => u !== username);
   localStorage.setItem('skrimchat_blocked_users', JSON.stringify(list));
@@ -448,6 +458,7 @@ export async function muteUser(username: string): Promise<void> {
     await apiClient.post('/skrimchat-social-graph/mute', { username });
   } catch (err) {
     console.warn("TODO: Real backend POST mute not ready.", err);
+    throw err;
   }
   const list = await getMutedUsers();
   if (!list.includes(username)) { list.push(username); localStorage.setItem('skrimchat_muted_users', JSON.stringify(list)); window.dispatchEvent(new Event('skrimchat_privacy_updated')); }
@@ -458,6 +469,7 @@ export async function unmuteUser(username: string): Promise<void> {
     await apiClient.post('/skrimchat-social-graph/unmute', { username });
   } catch (err) {
     console.warn("TODO: Real backend POST unmute not ready.", err);
+    throw err;
   }
   const list = (await getMutedUsers()).filter(u => u !== username);
   localStorage.setItem('skrimchat_muted_users', JSON.stringify(list));
@@ -817,6 +829,7 @@ export async function restrictUser(username: string): Promise<void> {
     await apiClient.post('/skrimchat-social-graph/restricted', { username });
   } catch (err) {
     console.warn("TODO: Real backend POST restrict not ready.", err);
+    throw err;
   }
   const list = await getRestrictedUsers();
   if (!list.includes(username)) {
@@ -831,6 +844,7 @@ export async function unrestrictUser(username: string): Promise<void> {
     await apiClient.post('/skrimchat-social-graph/unrestrict', { username });
   } catch (err) {
     console.warn("TODO: Real backend POST unrestrict not ready.", err);
+    throw err;
   }
   const list = (await getRestrictedUsers()).filter(u => u !== username);
   localStorage.setItem(RESTRICTED_USERS_KEY, JSON.stringify(list));

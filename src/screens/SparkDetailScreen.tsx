@@ -4,6 +4,7 @@ import { SparkViewer } from '../components/SparkViewer';
 import { useCurrentUser } from '../hooks/useCurrentUser';
 import { getSparks } from '../lib/mock/mockServices';
 import { deleteRecord } from '../lib/services/mediaStorage';
+import { apiClient } from '../lib/apiClient';
 
 /**
  * Opens a single Spark directly by ID — reached by tapping a "Spark" bubble
@@ -25,10 +26,10 @@ export default function SparkDetailScreen() {
     setLoading(true);
     setError(null);
 
-    getSparks().then((all) => {
-      if (!active) return;
+    const fetchSpark = async () => {
       try {
-        const spark = all.find((s: any) => s.id === sparkId);
+        const spark = await apiClient.get<any>(`/sparks/${sparkId}`);
+        if (!active) return;
         if (!spark) {
           setNotFound(true);
           setLoading(false);
@@ -53,16 +54,49 @@ export default function SparkDetailScreen() {
         ]);
         setLoading(false);
       } catch (err: any) {
-        console.error("Error setting spark details:", err);
-        setError(err.message || "Failed to process Spark data.");
-        setLoading(false);
+        console.warn("Real-time spark details API is offline, using mock list fallback:", err);
+        getSparks().then((all) => {
+          if (!active) return;
+          try {
+            const spark = all.find((s: any) => s.id === sparkId);
+            if (!spark) {
+              setNotFound(true);
+              setLoading(false);
+              return;
+            }
+            let viewedSet = new Set<string>();
+            try {
+              viewedSet = new Set(JSON.parse(localStorage.getItem('skrimchat_viewed_sparks') || '[]'));
+            } catch {}
+            setGroup([
+              {
+                id: spark.user?.id || spark.user?.username || 'unknown',
+                userId: spark.user?.id || spark.user?.username || 'unknown',
+                user: spark.user,
+                isOwn: !!spark.isOwn,
+                sparks: [{ ...spark, hasViewed: spark.hasViewed || viewedSet.has(spark.id) }],
+                maxEnergy: spark.energy,
+                hasViewed: spark.hasViewed || viewedSet.has(spark.id),
+                energy: spark.energy || 'COLD',
+                expiresAt: spark.expiresAt || 0,
+              },
+            ]);
+            setLoading(false);
+          } catch (processErr: any) {
+            console.error("Error setting spark details from fallback:", processErr);
+            setError(processErr.message || "Failed to process Spark data.");
+            setLoading(false);
+          }
+        }).catch((fallbackErr: any) => {
+          if (!active) return;
+          console.error("Failed to load fallback sparks:", fallbackErr);
+          setError(fallbackErr.message || "Failed to load Spark.");
+          setLoading(false);
+        });
       }
-    }).catch((err: any) => {
-      if (!active) return;
-      console.error("Failed to load sparks:", err);
-      setError(err.message || "Failed to load Spark.");
-      setLoading(false);
-    });
+    };
+
+    fetchSpark();
 
     return () => { active = false; };
   }, [sparkId]);

@@ -21,11 +21,11 @@ export default function TipsManageScreen() {
       setLoading(true);
       setError(null);
       try {
-        await apiClient.get('/skrimchat-monetization/tips');
+        const res = await apiClient.get<any>('/skrimchat-monetization/tips');
         if (activeFlag) {
-          setActive(TIPS_CONFIG.active);
-          setAmounts(TIPS_CONFIG.suggestedAmounts);
-          setMessage(TIPS_CONFIG.message);
+          setActive(res?.active ?? TIPS_CONFIG.active);
+          setAmounts(res?.suggestedAmounts || res?.amounts || TIPS_CONFIG.suggestedAmounts);
+          setMessage(res?.message || TIPS_CONFIG.message);
         }
       } catch (err: any) {
         console.warn("Real-time tips API is offline:", err);

@@ -21,10 +21,10 @@ export default function PremiumManageScreen() {
       setLoading(true);
       setError(null);
       try {
-        await apiClient.get('/skrimchat-monetization/premium');
+        const res = await apiClient.get<any>('/skrimchat-monetization/premium');
         if (activeFlag) {
-          setActive(PREMIUM_CONFIG.active);
-          setContent(PREMIUM_CONFIG.content);
+          setActive(res?.active ?? PREMIUM_CONFIG.active);
+          setContent(res?.content || PREMIUM_CONFIG.content);
         }
       } catch (err: any) {
         console.warn("Real-time premium config API is offline:", err);

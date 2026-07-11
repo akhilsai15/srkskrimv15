@@ -10,10 +10,7 @@ export default function AdminDashboardScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const isAdmin = currentUser?.isAdmin || 
-                  currentUser?.username === 'SkrimAdmin' || 
-                  currentUser?.email === 'admin@skrim.chat' ||
-                  currentUser?.email === 'akhilsaitejachess@gmail.com'; // Allow access for the developer/reviewer email
+  const isAdmin = !!(currentUser?.isAdmin || currentUser?.username === 'SkrimAdmin');
 
   useEffect(() => {
     if (!isAdmin) {

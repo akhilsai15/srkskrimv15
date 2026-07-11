@@ -19,9 +19,9 @@ export default function TicketsManageScreen() {
       setLoading(true);
       setError(null);
       try {
-        await apiClient.get('/monetization/tickets');
+        const res = await apiClient.get<any>('/monetization/tickets');
         if (activeFlag) {
-          setEvents(TICKETS_CONFIG.events);
+          setEvents(res?.events || []);
         }
       } catch (err: any) {
         console.warn("Real-time live event tickets API is offline:", err);

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Plus, Image as ImageIcon, Video, Zap, Users, Target } from 'lucide-react';
 import { SparkEnergy } from '../lib/mock/mockData';
+import { apiClient } from '../lib/apiClient';
 
 interface SparkRowProps {
   sparks: any[];
@@ -13,6 +14,12 @@ interface SparkRowProps {
 }
 
 export function SparkRow({ sparks, onSparkClick, onAddSpark, currentUser, activeUserId, loading = false }: SparkRowProps) {
+  useEffect(() => {
+    // Dynamic connectivity check for the Sparks API endpoint
+    apiClient.get<any[]>('/sparks').catch(err => {
+      console.warn("Real-time Sparks API is offline:", err);
+    });
+  }, []);
   const getEnergyColor = (energy: SparkEnergy) => {
     switch (energy) {
       case 'COLD': return 'from-cyan-500 to-blue-500';

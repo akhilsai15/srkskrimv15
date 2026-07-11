@@ -13,15 +13,22 @@ export function AudienceTab() {
   const navigate = useNavigate();
   const [showAllLocations, setShowAllLocations] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [audienceData, setAudienceData] = useState<typeof AUDIENCE_DATA>(AUDIENCE_DATA);
 
   useEffect(() => {
     let active = true;
     const fetchAudience = async () => {
       setLoading(true);
       try {
-        await apiClient.get('/skrimchat-monetization/audience');
+        const res = await apiClient.get<any>('/skrimchat-monetization/audience');
+        if (active) {
+          setAudienceData(res || AUDIENCE_DATA);
+        }
       } catch (err) {
         console.warn("Real-time creator audience API is offline:", err);
+        if (active) {
+          setAudienceData(AUDIENCE_DATA);
+        }
       } finally {
         if (active) setLoading(false);
       }
@@ -30,7 +37,7 @@ export function AudienceTab() {
     return () => { active = false; };
   }, []);
 
-  const { gender, age, locations, peakOnline, followerGrowthChart, topFans, totalFollowers, activeFollowers, activePercent } = AUDIENCE_DATA;
+  const { gender, age, locations, peakOnline, followerGrowthChart, topFans, totalFollowers, activeFollowers, activePercent } = audienceData;
 
   const visibleLocations = showAllLocations ? locations : locations.slice(0, 1);
 

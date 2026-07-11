@@ -40,9 +40,9 @@ export function CampaignDashboard({ onBack, onCreateAd, onEditResubmit, justLaun
       setLoading(true);
       setError(null);
       try {
-        await apiClient.get('/skrimchat-monetization/campaigns');
+        const res = await apiClient.get<any>('/skrimchat-monetization/campaigns');
         if (active) {
-          setCampaigns(INITIAL_CAMPAIGNS);
+          setCampaigns(Array.isArray(res) ? res : res?.campaigns || INITIAL_CAMPAIGNS);
         }
       } catch (err: any) {
         console.warn("Real-time campaigns dashboard API is offline:", err);

@@ -25,9 +25,9 @@ export function PromoteHome({ onCreateAd, onViewCampaignDashboard }: PromoteHome
       setLoading(true);
       setError(null);
       try {
-        await apiClient.get('/skrimchat-monetization/campaigns');
+        const res = await apiClient.get<any>('/skrimchat-monetization/campaigns');
         if (active) {
-          setCampaigns(CAMPAIGNS);
+          setCampaigns(Array.isArray(res) ? res : res?.campaigns || CAMPAIGNS);
         }
       } catch (err: any) {
         console.warn("Real-time campaigns API is offline:", err);
