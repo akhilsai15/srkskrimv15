@@ -142,8 +142,12 @@ export default function ChatThreadScreen() {
     setWsLoading(true);
     setWsError(null);
 
-    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${wsProtocol}//${window.location.host}/ws`;
+    const configSignalingUrl = (import.meta as any).env?.VITE_SIGNALING_URL;
+    let wsUrl = configSignalingUrl;
+    if (!wsUrl) {
+      const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      wsUrl = `${wsProtocol}//${window.location.host}/ws`;
+    }
     let ws: WebSocket;
 
     try {

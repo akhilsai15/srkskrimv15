@@ -79,8 +79,12 @@ class CallEngine {
     }
     if (typeof window === "undefined") return;
 
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${protocol}//${window.location.host}/ws`;
+    const configSignalingUrl = (import.meta as any).env?.VITE_SIGNALING_URL;
+    let wsUrl = configSignalingUrl;
+    if (!wsUrl) {
+      const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+      wsUrl = `${protocol}//${window.location.host}/ws`;
+    }
     const ws = new WebSocket(wsUrl);
     this.ws = ws;
 
