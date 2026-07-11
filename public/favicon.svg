@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="cyber-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#050508"/>
+      <stop offset="100%" stop-color="#000000"/>
+    </linearGradient>
+
+    <linearGradient id="glass-rim" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#d946ef" stop-opacity="0.9"/>
+      <stop offset="30%" stop-color="#a855f7" stop-opacity="0.2"/>
+      <stop offset="70%" stop-color="#00f2fe" stop-opacity="0.2"/>
+      <stop offset="100%" stop-color="#00f2fe" stop-opacity="0.9"/>
+    </linearGradient>
+
+    <linearGradient id="zap-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#C026FF"/>
+      <stop offset="30%" stop-color="#a855f7"/>
+      <stop offset="70%" stop-color="#00f2fe"/>
+      <stop offset="100%" stop-color="#00D4FF"/>
+    </linearGradient>
+
+    <linearGradient id="core-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="70%" stop-color="#ffffff" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#00D4FF" stop-opacity="0.2"/>
+    </linearGradient>
+
+    <filter id="neon-laser" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="10" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <rect x="12" y="12" width="488" height="488" rx="130" fill="url(#cyber-bg)" stroke="url(#glass-rim)" stroke-width="6" />
+
+  <g filter="url(#neon-laser)" transform="translate(10, 5)">
+    <polygon points="360,80 200,260 280,260 150,440 320,230 240,230" fill="url(#zap-grad)" />
+    
+    <polygon points="350,95 208,260 280,260 165,420 310,230 240,230" fill="url(#core-grad)" opacity="0.9" />
+  </g>
+</svg>

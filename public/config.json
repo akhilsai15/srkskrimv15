@@ -1,0 +1,10 @@
+{
+  "apiBaseUrl": "placeholder-api-base-url",
+  "cognitoUserPoolId": "placeholder-cognito-user-pool-id",
+  "cognitoClientId": "placeholder-cognito-client-id",
+  "cognitoDomain": "placeholder-cognito-domain",
+  "cloudfrontDomain": "placeholder-cloudfront-domain",
+  "s3Bucket": "placeholder-s3-bucket",
+  "razorpayKeyId": "placeholder-razorpay-key-id",
+  "awsRegion": "placeholder-aws-region"
+}
